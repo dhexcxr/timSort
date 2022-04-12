@@ -1,4 +1,4 @@
-// ver 0.8
+// ver 0.88 with debug
 // added stuff to detect and reverse descending runs
 // have correct binary insertion working
 // probably other stuff
@@ -24,11 +24,11 @@ public class TimSort {
 		// fill with random Integer objects
 		long seed = java.lang.System.currentTimeMillis();
 		Random random = new Random();
-		random.setSeed(1638804338884l);		// 1638576577933l constant seed for debug testing
-											// 1638804338884l 55 + 500, 1000, dupe element testing
-		
+		random.setSeed(seed);		// 1638576577933l constant seed for debug testing
+		// 1638804338884l 55 + 500, 1000, dupe element testing
+
 		// generate an array between 1000-1500 long, filled with ints from 0-1000
-		for (int i = 0; i < random.nextInt(55) + 50000; i++)
+		for (int i = 0; i < random.nextInt(550) + 10000; i++)
 			intList.add(random.nextInt(1000));
 
 		// debug for ascending
@@ -52,79 +52,88 @@ public class TimSort {
 		//			intList.add(i);
 
 		// debug for long lists
-//				for (int i = 1; i <= random.nextInt(500) + 500000; i++)
-//					intList.add(i);
+		//				for (int i = 1; i <= random.nextInt(500) + 100000; i++)
+		//					intList.add(i);
 
 		// print out seed and list for debug testing
 		System.out.println("seed: " + seed);
 
 		// print unsorted list
-//		int i = 0;
-//		for (Integer element : intList) {
-//			System.out.print(element + ", ");
-//			i++;
-//			if (i % 20 == 0)
-//				System.out.println();
-//		}
-//		System.out.println("END original list");
-//		System.out.println();
+		//		int i = 0;
+		//		for (Integer element : intList) {
+		//			System.out.print(element + ", ");
+		//			i++;
+		//			if (i % 20 == 0)
+		//				System.out.println();
+		//		}
+		//		System.out.println("END original list");
+		//		System.out.println();
 		// end more debug stuff
-		
+
 		List<Integer> shuffledList = new ArrayList<>(intList);
-		
+
 		Collections.shuffle(shuffledList);
 		// print shuffled list
-//		i = 0;
-//		for (Integer element : shuffledList) {
-//			System.out.print(element + ", ");
-//			i++;
-//			if (i % 20 == 0)
-//				System.out.println();
-//		}
-//		System.out.println("END shuffled list");
-//		System.out.println();
-		
+		//		i = 0;
+		//		for (Integer element : shuffledList) {
+		//			System.out.print(element + ", ");
+		//			i++;
+		//			if (i % 20 == 0)
+		//				System.out.println();
+		//		}
+		//		System.out.println("END shuffled list");
+		//		System.out.println();
+
+		List<Integer> bubbleList = new ArrayList<>(shuffledList);
 		// old bubble sort
 		long bubSortStart = System.currentTimeMillis();
-//		bubbleSort(shuffledList);
+		bubbleSort(bubbleList);
 		long bubSortEnd = System.currentTimeMillis();
+
 		
+		List<Integer> mergeList = new ArrayList<>(shuffledList);
+		// standard merge sort
+		long mergeSortStart = System.currentTimeMillis();
+		mergeSort(mergeList);
+		long mergeSortEnd = System.currentTimeMillis();
 		
+		List<Integer> timList = new ArrayList<>(shuffledList);
 		// commence TimSort
 		long timSortStart = System.currentTimeMillis();
-		List<Integer> result = sort(shuffledList);
+		List<Integer> result = sort(timList);
 		long timSortEnd = System.currentTimeMillis();
-		
+
 		// debug thing
-//		int k = 1;
-//		System.out.println("\nResult Length: " + result.size());
-//		for (Integer element : result) {
-//			System.out.print(element + ", ");
-//			if (k % 20 == 0)
-//				System.out.println();
-//			k++;
-//		}
+		//		int k = 1;
+		//		System.out.println("\nResult Length: " + result.size());
+		//		for (Integer element : result) {
+		//			System.out.print(element + ", ");
+		//			if (k % 20 == 0)
+		//				System.out.println();
+		//			k++;
+		//		}
 		// end debug thing
-		
+
+		List<Integer> builtInList = new ArrayList<>(shuffledList);
 		long collectionSortStart = System.currentTimeMillis();
-		Collections.sort(shuffledList);
+		Collections.sort(builtInList);
 		long collectionSortEnd = System.currentTimeMillis();
-//		System.out.println("\n");
-//		k = 1;
-//		for (Integer inte : intList) {
-//			System.out.print(inte + ", ");
-//			if (k % 20 == 0)
-//				System.out.println();
-//			k++;
-//		}
-		
-		
+		//		System.out.println("\n");
+		//		k = 1;
+		//		for (Integer inte : intList) {
+		//			System.out.print(inte + ", ");
+		//			if (k % 20 == 0)
+		//				System.out.println();
+		//			k++;
+		//		}
+
+
 		// check that sorted shuffled list is the same as orginal list
 		boolean error = false;
 		for (int j = 0; j < shuffledList.size(); j++) {
 			if (shuffledList.get(j).compareTo(result.get(j)) != 0) {
-//				System.out.print("Error at element: " + j);
-//				System.out.println(", " + intList.get(j) + " != " + result.get(j));
+				//				System.out.print("Error at element: " + j);
+				//				System.out.println(", " + intList.get(j) + " != " + result.get(j));
 				error = true;
 			}
 		}
@@ -133,10 +142,14 @@ public class TimSort {
 		} else {
 			System.out.println("\nTimSort worked!!");
 		}
-		
+
 		System.out.println("Bubble Sort took " + (bubSortEnd - bubSortStart) + " ms to sort the array.");
+		System.out.println("Merge Sort took " + (mergeSortEnd - mergeSortStart) + " ms to sort the array.");
 		System.out.println("My TimSort took " + (timSortEnd - timSortStart) + " ms to sort the array.");
 		System.out.println("The built in sort took " + (collectionSortEnd - collectionSortStart) + " ms to sort the array");
+
+		System.out.println("Original intList.size(): " + intList.size());
+		System.out.println("result.size(): " + result.size());
 
 	}
 
@@ -165,8 +178,8 @@ public class TimSort {
 		}
 
 		// print stuff for debug
-//		System.out.println("array.size() = " + array.size());
-//		System.out.println("min_run_size = " + min_run_size);
+		//		System.out.println("array.size() = " + array.size());
+		//		System.out.println("min_run_size = " + min_run_size);
 
 		Stack<List<T>> runStack = new Stack<>();
 
@@ -225,10 +238,10 @@ public class TimSort {
 				runStack.add(currentRun);
 				// reset currentRun to an empty list, ending currentRun
 				currentRun = new ArrayList<>();
-//				// add currentElement to currentRun, starting a new run
-//				currentRun.add(array.get(i));		// safer to decrement currentIndex as above, which might also
-														// be quicker than testing for end of array and adding 
-														// array[i] to new currentRun upon passing that conditional
+				//				// add currentElement to currentRun, starting a new run
+				//				currentRun.add(array.get(i));		// safer to decrement currentIndex as above, which might also
+				// be quicker than testing for end of array and adding 
+				// array[i] to new currentRun upon passing that conditional
 			} else {
 				// if currentRun.size() is larger than min_run_size, just add it to runStack
 				runStack.add(currentRun);
@@ -246,7 +259,7 @@ public class TimSort {
 				xSize = runStack.get(runStack.size() - 1).size();
 				ySize = runStack.get(runStack.size() - 2).size();
 				zSize = runStack.get(runStack.size() - 3).size();
-				
+
 				while (zSize < ySize + xSize || ySize < xSize) {
 					List<T> mergedList = new ArrayList<>();
 					List<T> x = runStack.pop();
@@ -280,50 +293,43 @@ public class TimSort {
 		}
 
 		// print lists in stack for debug testing
-//		int j = 1;
-//		for (List<T> run : runStack) {
-//			int i = 0;
-//			System.out.println("\nRun Length: " + run.size());
-//			for (T element : run) {
-//				System.out.print(element + ", ");
-//				i++;
-//				if (i % 20 == 0)
-//					System.out.println();
-//			}
-//			System.out.println("\nEND Run Num: " + j);
-//			System.out.println();
-//			j++;
-//		}
+		//		int j = 1;
+		//		for (List<T> run : runStack) {
+		//			int i = 0;
+		//			System.out.println("\nRun Length: " + run.size());
+		//			for (T element : run) {
+		//				System.out.print(element + ", ");
+		//				i++;
+		//				if (i % 20 == 0)
+		//					System.out.println();
+		//			}
+		//			System.out.println("\nEND Run Num: " + j);
+		//			System.out.println();
+		//			j++;
+		//		}
 		// end debug testing
 		// END RUN FINDING
 
 
 		List<T> sortedResults = runStack.pop();
-		
-		for (int i = runStack.size() - 1; i >= 0; i--) {		// TODO actually sort these things, KINDA DONE
+
+		for (int i = runStack.size() - 1; i >= 0; i--) {
 			runStack.add(merge(sortedResults, runStack.get(i)));
 			if (runStack.size() > 0) {
 				sortedResults = runStack.pop();
 			} 
 		}
-
 		return sortedResults;
 	}
 
 
 
 	private static <T extends Comparable<T>> List<T> merge(List<T> firstArray, List<T> secondArray) {
-
-		// TODO finish gallop mode
 		int minGallop = 7;
 
 		List<T> result = new ArrayList<>();
 		int index1 = 0;
 		int index2 = 0;
-
-		//		// TODO find which array has highest 1st element, and lowest last element
-		//		List<T> firstArray = new ArrayList<>();
-		//		List<T> secondArray = new ArrayList<>();
 
 		int lowIndexForFirstElement = firstElementIndex(secondArray, firstArray.get(0));
 		int hiIndexForLastElement = lastElementIndex(firstArray, secondArray.get(secondArray.size()-1));
@@ -343,21 +349,18 @@ public class TimSort {
 		// end loop at hiIndexForLastElement so we can add presorted tail of firstArray
 		while ((index1 < firstArray.size() && index1 < hiIndexForLastElement) || index2 < secondArray.size()) {
 			if (index1 == firstArray.size() || index1 == hiIndexForLastElement) {
-				//			if (index1 == hiIndexForLastElement) {
 				result.add(secondArray.get(index2++));
 			} else if (index2 == secondArray.size()) {
 				result.add(firstArray.get(index1++));
 			} else {
-				//				T element1 = firstArray.get(index1);
-				//				T elememt2 = secondArray.get(index2);
 				if (firstArray.get(index1).compareTo(secondArray.get(index2)) >= 0) {
 					// secondArray element is smaller
 					result.add(secondArray.get(index2));
 					bCount++;
 					aCount = 0;
 					index2++;
-					
-					
+
+					// GALLOP
 					while (bCount > minGallop || aCount > minGallop) {
 						int index2start = index2;
 						int indexToGallopTo = firstElementIndex(secondArray, firstArray.get(index1));
@@ -368,38 +371,30 @@ public class TimSort {
 						}
 						result.add(firstArray.get(index1++));
 						bCount = index2 - index2start;
-						
-						int index1start = index1;
-						indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
-						while (index1 < indexToGallopTo) {
-							result.add(firstArray.get(index1));
-							index1++;
+
+						if (index2 < secondArray.size()) {
+							int index1start = index1;
+							indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
+							while (index1 < indexToGallopTo) {
+								result.add(firstArray.get(index1));
+								index1++;
+							}
+							result.add(secondArray.get(index2++));		//// WORKING HERE
+							aCount = index1 - index1start;
 						}
-						result.add(secondArray.get(index2++));		//// WORKING HERE
-						aCount = index1 - index1start;
 					}
-					
-					
-//					if (bCount > minGallop) {
-////						index2 = gallop(firstArray, index1, secondArray, index2, result, minGallop);
-//						int indexToGallopTo = firstElementIndex(secondArray, firstArray.get(index1));
-//						// add presorted elements of secondArray to results
-//						while (index2 < indexToGallopTo) {
-//							result.add(secondArray.get(index2));
-//							index2++;
-//						}
-//					}
 				} else {
 					// firstArray element is smaller
 					result.add(firstArray.get(index1));
 					aCount++;
 					bCount = 0;
 					index1++;
-					
-					
+
+					// GALLOP
 					while (aCount > minGallop || bCount > minGallop) {
 						// TODO, fix logic error here
-								//sometimes in very large, totally random arrays, an element is doubled
+						//sometimes in very large, totally random arrays, an element is doubled
+						// alternatively, lots of elements are doubled
 						int index1start = index1;
 						int indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
 						// add presorted elements of secondArray to results
@@ -409,7 +404,8 @@ public class TimSort {
 						}
 						result.add(secondArray.get(index2));
 						aCount = index1 - index1start;
-						
+						// END section with logic error
+
 						if (index1 < firstArray.size()) {
 							int index2start = index2;
 							indexToGallopTo = firstElementIndex(secondArray, firstArray.get(index1));
@@ -420,33 +416,10 @@ public class TimSort {
 							result.add(firstArray.get(index1));
 							bCount = index2 - index2start;
 						}
-						
 					}
-					
-					
-//					if (aCount > minGallop) {
-////						index1 = gallop(secondArray, index2, firstArray, index1, result, minGallop);
-//						int indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
-//						// add presorted elements of firstArray to results
-//						// if indexToGallopTo == index1, minGallop++
-//						while (index1 < indexToGallopTo) {
-//							result.add(firstArray.get(index1));
-//							// DEBUG CATCHER!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//							if (result.size() > 1 && result.get(result.size() - 1) == result.get(result.size() - 2))
-//								System.out.println("Here\'s the littel bugger");
-//							// END DEBUG CATCHER!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//							index1++;
-//						}
-//					}
 				}
 			}
 		}
-
-		/* minGallop++;
-		// while (acount > minGallop || bcount > minGallop)
-		 * 
-		 * 
-		 */
 
 		// add presorted tail of second array
 		if (hiIndexForLastElement != -1 && hiIndexForLastElement != firstArray.size()) {
@@ -456,39 +429,11 @@ public class TimSort {
 				result.add(firstArray.get(i));
 			}
 		}
-
-
 		return result;
 	}
 
-	private static <T extends Comparable<T>> int gallop(List<T> firstArray, int index1, List<T> secondArray, int index2, List<T> result, int minGallop) {
-		int index1run = index1;
-		int index2run = index2;
-
-
-		while (index2run > minGallop) {
-			int indexToGallopTo = firstElementIndex(secondArray, firstArray.get(index1));
-			index2run = indexToGallopTo - index2;
-			// add presorted elements of secondArray to results
-			while (index2 < indexToGallopTo) {
-				result.add(secondArray.get(index2));
-				index2++;
-			}
-
-//			indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
-//			index1run = indexToGallopTo - index1;
-//			// add presorted elements of secondArray to results
-//			while (index1 < indexToGallopTo) {
-//				result.add(firstArray.get(index1));
-//				index1++;
-//			}
-		}
-		return index2;
-	}
-
-	// TODO, turn this into a binary search
 	private static <T extends Comparable<T>> int firstElementIndex(List<T> searchedArray, T element) {
-		// binary search to find lowest position for element parameter in searchedArray
+		// linear search to find lowest position for element parameter in searchedArray
 		// returns -1 if correct position is not found
 		int result = -1;		/* guilty until proved innocent */
 		int index = 0;
@@ -506,7 +451,7 @@ public class TimSort {
 	}
 
 	private static <T extends Comparable<T>> int lastElementIndex(List<T> searchedArray, T element) {
-		// binary search to find highest position for element parameter in searchedArray
+		// linear search to find highest position for element parameter in searchedArray
 		// returns -1 if correct position is not found
 		int result = -1;		/* guilty until proved innocent */
 		int index = searchedArray.size() - 1;
@@ -520,60 +465,11 @@ public class TimSort {
 		if (index == 0) {
 			result = index;
 		}
-
 		return result;
-	}
-
-	private static <T extends Comparable<T>> List<T> insertionSort(List<T> array) {
-		for (T element : array) {
-
-		}
-		//		// TODO Auto-generated method stub
-		//		List<T> sortedList = new ArrayList<>();
-		//		
-		//		for (int i = 1; i < array.size(); i++) {
-		//			T elementI = array.get(i);
-		//
-		//			int j = i - 1;
-		//			T elementJ = array.get(j);
-		//			for (; j >= 0 && elementJ.compareTo(elementI) > 0; j--) {
-		//				array.set(j + 1, elementJ);
-		//			}
-		//			array.set(j + 1, elementI);
-		//		}
-		//		
-		//		return array;
-		return array;
-	}
-
-	private static <T extends Comparable<T>> List<T> insertion(List<T> array, T element) {
-		//		for (T element : array) {
-		//			
-		//		}
-		// TODO Auto-generated method stub
-		List<T> sortedList = new ArrayList<>();
-
-		for (int i = 0; i < array.size(); i++) {
-			if (element.compareTo(array.get(i)) < 0) {
-				sortedList.add(element);
-				for (; i < array.size(); i++) {
-					sortedList.add(array.get(i));
-				}
-				//				sortedList.addAll(i + 1, sortedList);
-				return sortedList;
-			}
-			sortedList.add(array.get(i));
-		}
-		sortedList.add(element);
-
-		//		return array;
-		return sortedList;
 	}
 
 	// binary insert based on binary search from ch14_1 project
 	private static <T extends Comparable<T>> List<T> binaryInsert(List<T> list, T data) {
-		// TODO better comments
-
 		// set index bounds of zero and last index in list
 		int L = 0;
 		int U = list.size();
@@ -582,7 +478,6 @@ public class TimSort {
 
 		// loop while bounds are not equal
 		while(L < U){
-
 			// compare requested data to list[M]
 			int compareResult = list.get(M).compareTo(data);
 			// if the data we're looking for is "less than" list[M]
@@ -591,22 +486,15 @@ public class TimSort {
 				U = M;
 			// if the data we're looking for is "greater than" lsit[M]
 			// bring lower limit up
-			else // if(compareResult < 0)
+			else
 				// do not set L to M, because we already checked M and know it is not what we're looking for
 				L = M + 1;
-			//			else {
-			//				// if we reach here, compareResult must equal 0 and we've found what we're looking for
-			//				list.add(M, data);
-			//				return list;
-			//			}
 			M = (L + U) / 2;
 		}
-		// if we leave loop without returning M, item we're looking for is not found, return -1
 		list.add(M, data);
 		return list;
-		//		return list;		// TODO, check if getting here wihtou adding data ruins anytthing, maybe change to null
 	}
-	
+
 	// BubbleSort from Chapter 16
 	public static <E extends Comparable<E>> int bubbleSort(List<E> list) {
 		// generic bubble sort for objects implementing the Comparable interface
@@ -630,4 +518,56 @@ public class TimSort {
 		return iterationCount;
 	}
 
+	// mergeSort from Chapter 16
+	public static <T extends Comparable<T>> List<T> mergeSort(List<T> list) {
+
+		// base case
+		if (list.size() < 2)
+			return list;
+
+		// partition into two halves, and recurse
+
+		// copy first half of the input list into ‘half1', and sort ‘halfl'
+		List<T> half1 = new ArrayList<>();
+		for (int i = 0; i < list.size() / 2; i++) {
+			half1.add(list.get(i));
+		}
+		half1 = mergeSort(half1);
+
+		// copy first hhLf of the input list into ‘half1', and sort ‘half1'
+
+		List<T> half2 = new ArrayList<>();
+
+		for (int i = list.size() / 2; i < list.size(); i++) {
+			half2.add(list.get(i));
+		}
+		half2 = mergeSort(half2);
+
+		// merge
+		return mergeHalves(half1, half2);
+	}
+
+	public static <T extends Comparable<T>> List<T> mergeHalves(List<T> half1, List<T> half2) {
+
+		List<T> result = new ArrayList<>();
+		int index1 = 0, index2 = 0;
+
+		// loop until both halves are depleted
+		while (index1 < half1.size() || index2 < half2.size()) {
+
+			if (index1 == half1.size())
+				result.add(half2.get(index2++));
+
+			else if (index2 == half2.size())
+				result.add(half1.get(index1++));
+
+			else {
+				if (half1.get(index1).compareTo(half2.get(index2)) > 0)
+					result.add(half2.get(index2++));
+				else
+					result.add(half1.get(index1++));
+			}
+		}
+		return result;
+	}
 }
