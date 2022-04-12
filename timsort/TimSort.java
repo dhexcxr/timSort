@@ -22,15 +22,18 @@ https://skerritt.blog/timsort/
 
  ***************************************/
 
-// ver 0.99.1dweebug
+// ver 0.9.2 debug
 // added stuff to detect and reverse descending runs
 // have correct binary insertion working
 // probably other stuff
 // most bugs fixed (famous last words)
 // and GALLOP MODE
-// I think the only major feature I don't have is adjusting minGallop
+// this is slower than a standard merge sort, I think because my merge does not merge in place
+// adding that (doing less memory copying) should speed this up
+// the only major feature I don't have is adjusting minGallop to make galloping easier or harder
+// depending on previous gallop performance
 
-// TODO add modified binary search for galloping
+// TODO change to in-place merging
 
 
 package timsort;
@@ -51,7 +54,7 @@ public class TimSort {
 		// fill with random Integer objects
 		long seed = java.lang.System.currentTimeMillis();
 		Random random = new Random();
-		random.setSeed(seed);		// 1638804338884l 55 + 500, 1000, dupe element testing
+		random.setSeed(1638902789357l);		// 1638804338884l 55 + 500, 1000, dupe element testing
 
 		System.out.println("seed: " + seed);
 
@@ -71,7 +74,7 @@ public class TimSort {
 		// old bubble sort
 		List<Integer> bubbleList = new ArrayList<>(shuffledList);
 		long bubSortStart = System.currentTimeMillis();
-		bubbleSort(bubbleList);
+//		bubbleSort(bubbleList);
 		long bubSortEnd = System.currentTimeMillis();
 
 		// commence TimSort
@@ -86,7 +89,7 @@ public class TimSort {
 		Collections.sort(builtInList);
 		long collectionSortEnd = System.currentTimeMillis();
 
-		// check that TimSorted shuffled list is the same as original list
+		// check that my TimSorted list is the same built is sorted list
 		boolean error = false;
 		for (int j = 0; j < builtInList.size(); j++) {
 			if (builtInList.get(j).compareTo(result.get(j)) != 0) {
@@ -145,28 +148,28 @@ public class TimSort {
 			boolean ascending = true;
 
 			// see if this or previous element is smaller
-			int compareResult = array.get(currentIndex).compareTo(array.get(currentIndex-1));
+			int compareResult = array.get(currentIndex).compareTo(array.get(currentIndex - 1));
 
 			// count length of run
-			// TODO find better way to count runLength
+			// TODO find better way to count runLength, probably combine count and creating
 			int runLength = currentIndex;
 			if (compareResult >= 0) {
 				ascending = true;
-				while (runLength < array.size() && array.get(runLength).compareTo(array.get(runLength - 1)) >= 0) {
-					runLength++;
+				while (currentIndex < array.size() && array.get(currentIndex).compareTo(array.get(currentIndex - 1)) >= 0) {
+					currentRun.add(array.get(currentIndex++));
 				}
 			} else {
 				ascending = false;
-				while (runLength < array.size()  && array.get(runLength).compareTo(array.get(runLength - 1)) < 0) {
-					runLength++;
+				while (currentIndex < array.size()  && array.get(currentIndex).compareTo(array.get(currentIndex - 1)) < 0) {
+					currentRun.add(array.get(currentIndex++));
 				}
 			}
 
 			// add natural run that we found to currentRun
-			while (currentIndex < runLength) {
-				currentRun.add(array.get(currentIndex));
-				currentIndex++;
-			}
+//			while (currentIndex < runLength) {
+//				currentRun.add(array.get(currentIndex));
+//				currentIndex++;
+//			}
 
 			// reverse run if that was a descending run
 			if (ascending == false && currentRun.size() > 1) {
@@ -184,7 +187,8 @@ public class TimSort {
 				while (currentIndex < array.size() && currentIndex < endIndex) {				
 					// insert more elements sorted into currentRun
 					// until we've hit end of array or we reach min_run_size
-					currentRun = binaryInsert(currentRun, array.get(currentIndex));
+//					currentRun = binaryInsert(currentRun, array.get(currentIndex));
+					binaryInsert(currentRun, array.get(currentIndex));
 					currentIndex++;
 				}
 				currentIndex--;		// decrement currentIndex so outer for loop does not skip element during next iteration
@@ -242,6 +246,8 @@ public class TimSort {
 		}
 		// END RUN FINDING
 
+		
+		// TODO i think i can make this neater too
 		List<T> sortedResults = runStack.pop();
 
 		for (int i = runStack.size() - 1; i >= 0; i--) {
@@ -253,6 +259,7 @@ public class TimSort {
 		return sortedResults;
 	}
 
+	// CORRECTION - sort in place to firstArray/y
 	private static <T extends Comparable<T>> List<T> merge(List<T> firstArray, List<T> secondArray) {
 		int minGallop = 7;
 
@@ -265,6 +272,7 @@ public class TimSort {
 
 		// add presorted elements of secondArray to results
 		for (int i = 0; i < lowIndexForFirstElement; i++) {
+			// CORRECTIONS - set index to lowInde....
 			result.add(secondArray.get(i));
 		}
 		// set index1 so we skip presorted elements already added
@@ -278,6 +286,7 @@ public class TimSort {
 		// end loop at hiIndexForLastElement so we can add presorted tail of firstArray
 		while ((index1 < firstArray.size() && index1 < hiIndexForLastElement) || index2 < secondArray.size()) {
 			if (index1 == firstArray.size() || index1 == hiIndexForLastElement) {
+				// CORREECTION - list.add(index, element) throughout this section
 				result.add(secondArray.get(index2++));
 			} else if (index2 == secondArray.size()) {
 				result.add(firstArray.get(index1++));
@@ -294,10 +303,10 @@ public class TimSort {
 						int indexToGallopTo = 0;
 						if (index1 < firstArray.size()) {
 							int index2start = index2;
-							indexToGallopTo = firstElementIndex(secondArray, firstArray.get(index1));		// TODO this needs to be
-							// turned into the modified
-							// binary search TimSort
-							// actually uses
+							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));	// TODO this needs to be
+																										// turned into the modified
+																										// binary search TimSort
+																										// actually uses
 							// add presorted elements of secondArray to results
 							while (index2 < indexToGallopTo) {
 								result.add(secondArray.get(index2));
@@ -311,7 +320,7 @@ public class TimSort {
 
 						if (index2 < secondArray.size()) {
 							int index1start = index1;
-							indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
+							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
 							while (index1 < indexToGallopTo) {
 								result.add(firstArray.get(index1));
 								index1++;
@@ -338,7 +347,7 @@ public class TimSort {
 						if (index2 < secondArray.size()) {
 							int index1start = index1;
 
-							indexToGallopTo = firstElementIndex(firstArray, secondArray.get(index2));
+							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
 
 							// add presorted elements of secondArray to results
 							while (index1 < indexToGallopTo) {
@@ -353,7 +362,7 @@ public class TimSort {
 
 						if (index1 < firstArray.size()) {
 							int index2start = index2;
-							indexToGallopTo = firstElementIndex(secondArray, firstArray.get(index1));
+							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
 							while (index2 < indexToGallopTo) {
 								result.add(secondArray.get(index2));
 								index2++;
@@ -387,39 +396,39 @@ public class TimSort {
 		while (index < searchedArray.size()) {
 			if (element.compareTo(searchedArray.get(index)) < 0) {
 				// element belongs before index, and after prevIndex
-				result = index;
+				result = firstElementIndex(searchedArray, prevIndex, index, element);
 				break;
 			}
 			prevIndex = index;
 			index = index * 2 + 1;
 		}
 		if (index > searchedArray.size()) {
-			result = searchedArray.size() - 1;
+			result = firstElementIndex(searchedArray, prevIndex, searchedArray.size(), element);
 		}
-
 		// find element position between prevIndex and index
-
-
-
 		return result;
 	}
 
+	
+	private static <T extends Comparable<T>> int firstElementIndex(List<T> searchedArray, T element) {
+		return firstElementIndex(searchedArray, 0, searchedArray.size(),  element);
+	}
 
 
 	// copy this to a version that takes start and end indecies, make overloaded one
-	private static <T extends Comparable<T>> int firstElementIndex(List<T> searchedArray, T element) {
+	private static <T extends Comparable<T>> int firstElementIndex(List<T> searchedArray, int startIndex, int endIndex, T element) {
 		// linear search to find lowest position for element parameter in searchedArray
 		// returns -1 if correct position is not found
 		int result = -1;		/* guilty until proved innocent */
-		int index = 0;
-		while (index < searchedArray.size()) {
+		int index = startIndex;
+		while (index < endIndex) {
 			if (element.compareTo(searchedArray.get(index)) < 0) {
 				result = index;
 				break;
 			}
 			index++;
 		}
-		if (index == searchedArray.size()) {
+		if (index == endIndex) {
 			result = index;
 		}
 		return result;
