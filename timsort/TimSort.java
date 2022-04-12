@@ -22,7 +22,7 @@ https://skerritt.blog/timsort/
 
  ***************************************/
 
-// ver 1.0.1
+// ver 1.0.2debug
 // added stuff to detect and reverse descending runs
 // have correct binary insertion working
 // probably other stuff
@@ -36,8 +36,12 @@ https://skerritt.blog/timsort/
 
 // the only major feature I don't have is adjusting minGallop to make galloping easier or harder
 // depending on previous gallop performance
+		// this is where all the performance gains lie, changeing minGallop to 99 lets My TimSort beat merge sort
+		// with 1,000,000 elements and it's only 1.5 times slower than the built in TimSort
 
 // runs faster if firstArray section of second gallop is commented out ???
+
+// we might be able to do all in place work done with .subArray method
 
 
 package timsort;
@@ -51,6 +55,8 @@ import java.util.Random;
 import java.util.Stack;
 
 public class TimSort {
+	
+	private static int minGallop = 7;
 
 	public static void main(String[] args) {
 
@@ -68,8 +74,11 @@ public class TimSort {
 			// generate list to test TimSort.sort
 			List<Integer> intList = new ArrayList<>();
 
-			for (int i = 0; i < 25000 + random.nextInt(20); i++)
-				intList.add(random.nextInt(1000));
+			for (int i = 0; i < 25000 + random.nextInt(20); i++) {
+				Integer element = random.nextInt(10000);
+				intList.add(element);
+			}
+				
 
 			// old bubble sort
 			List<Integer> bubbleList = new ArrayList<>(intList);
@@ -135,8 +144,10 @@ public class TimSort {
 		// generate a large list to test TimSort.sort
 		List<Integer> intList = new ArrayList<>(1000021);
 
-		for (int i = 0; i < 1000000 + random.nextInt(20); i++)
-			intList.add(random.nextInt(10000));
+		for (int i = 0; i < 1000000 + random.nextInt(20); i++) {
+			Integer element = random.nextInt(100000);
+			intList.add(element);
+		}
 
 		// standard merge sort
 		List<Integer> mergeList = new ArrayList<>(intList);
@@ -291,17 +302,24 @@ public class TimSort {
 		// TODO make this neater
 		List<T> sortedResults = runStack.pop();
 
-		for (int i = runStack.size() - 1; i >= 0; i--) {
-			runStack.add(merge(sortedResults, runStack.get(i)));
-			if (runStack.size() > 0) {
-				sortedResults = runStack.pop();
-			} 
+//		while (!runStack.isEmpty()) {
+//			runStack.add(merge(sortedResults, runStack.pop()));
+//			if (!runStack.isEmpty()) {
+//				sortedResults = runStack.pop();
+//			} 
+//		}
+		
+		while (!runStack.isEmpty()) {
+			sortedResults = merge(runStack.pop(), sortedResults);
 		}
+		
 		return sortedResults;
 	}
 
+	// TODO add correct minGallop scaling
 	private static <T extends Comparable<T>> List<T> merge(List<T> firstArray, List<T> secondArray) {
-		int minGallop = 7;
+		
+//		int minGallop = 7;
 
 		List<T> result = new ArrayList<>(firstArray.size() + secondArray.size() + 1);
 		int index1 = 0;
@@ -334,13 +352,16 @@ public class TimSort {
 					// secondArray element is smaller
 					result.add(secondArray.get(index2));
 					secondArrayWinCount++;
-					firstArrayWinCount = 0;
+					firstArrayWinCount = 2;		// give firstArray at lease one chance to find a run
 					index2++;
 
 					// GALLOP
+					if (secondArrayWinCount >= minGallop) {
+						minGallop++;
 					while (secondArrayWinCount >= minGallop || firstArrayWinCount >= minGallop) {
+						minGallop -= minGallop > 1 ? 1 : 0;
 						int indexToGallopTo = 0;
-						if (index1 < firstArray.size()) {
+						if (index1 < firstArray.size() && secondArrayWinCount > 1) {
 							int index2start = index2;
 							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
 							// add presorted elements of secondArray to results
@@ -354,7 +375,7 @@ public class TimSort {
 							secondArrayWinCount = 0;
 						}
 
-						if (index2 < secondArray.size()) {
+						if (index2 < secondArray.size() && firstArrayWinCount > 1) {
 							int index1start = index1;
 							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
 							while (index1 < indexToGallopTo) {
@@ -366,36 +387,41 @@ public class TimSort {
 						} else {
 							firstArrayWinCount = 0;
 						}
+						if (secondArrayWinCount < minGallop && firstArrayWinCount < minGallop) {
+							minGallop++;
+						}
 					}
+				}
 				} else {
 					// firstArray element is smaller
 					result.add(firstArray.get(index1));
 					firstArrayWinCount++;
-					secondArrayWinCount = 0;
+					secondArrayWinCount = 2;		// give secondArray at lease one chance to find a run
 					index1++;
 
 					// GALLOP
-					// for some reason the sort is ~10% faster if we skip this gallop section
-//					while (firstArrayWinCount >= minGallop || secondArrayWinCount >= minGallop) {
-					while (secondArrayWinCount > minGallop) {
-//						int indexToGallopTo = 0;
-//						if (index2 < secondArray.size()) {
-//							int index1start = index1;
-//							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
-//							// add presorted elements of firstArray to results
-//							while (index1 < indexToGallopTo) {
-//								result.add(firstArray.get(index1));
-//								index1++;
-//							}
-//							result.add(secondArray.get(index2++));
-//							firstArrayWinCount = index1 - index1start;
-//						} else {
-//							firstArrayWinCount = 0;
-//						}
+					if (firstArrayWinCount >= minGallop) {
+						minGallop++;
+					while (firstArrayWinCount >= minGallop) {
+						minGallop -= minGallop > 1 ? 1 : 0;
+						int indexToGallopTo = 0;
+						if (index2 < secondArray.size() && firstArrayWinCount > 1) {
+							int index1start = index1;
+							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
+							// add presorted elements of firstArray to results
+							while (index1 < indexToGallopTo) {
+								result.add(firstArray.get(index1));
+								index1++;
+							}
+							result.add(secondArray.get(index2++));
+							firstArrayWinCount = index1 - index1start;
+						} else {
+							firstArrayWinCount = 0;
+						}
 
-						if (index1 < firstArray.size()) {
+						if (index1 < firstArray.size() && secondArrayWinCount > 1) {
 							int index2start = index2;
-							int indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
+							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
 							while (index2 < indexToGallopTo) {
 								result.add(secondArray.get(index2));
 								index2++;
@@ -405,7 +431,11 @@ public class TimSort {
 						} else {
 							secondArrayWinCount = 0;
 						}
+						if (firstArrayWinCount < minGallop && secondArrayWinCount < minGallop) {
+							minGallop++;
+						}
 					}
+				}
 				}
 			}
 		}
