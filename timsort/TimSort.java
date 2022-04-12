@@ -22,25 +22,22 @@ https://skerritt.blog/timsort/
 
  ***************************************/
 
-// ver 0.99.4 debug
+// ver 1.0
 // added stuff to detect and reverse descending runs
 // have correct binary insertion working
 // probably other stuff
 // most bugs fixed (famous last words)
 // and GALLOP MODE
+
 // this is slower than a standard merge sort, I think because my merge does not merge in place
 // adding that (doing less memory copying) should speed this up
+	// ^ this is no longer true, major logic error in pushing merged runs back onto stack made sort 50-100x slower
+
+
 // the only major feature I don't have is adjusting minGallop to make galloping easier or harder
 // depending on previous gallop performance
 
-// there's something weird happening with 70k elements, not 60k and not 80k
-		// fixed bug in modifiedBinarySearch
-		// if (index >= searchedArray.size()) {
-			// was if (index > searchedArray.size()) {
-
 // runs faster if firstArray section of second gallop is commented out ???
-
-// TODO change to in-place merging
 
 
 package timsort;
@@ -57,30 +54,34 @@ public class TimSort {
 
 	public static void main(String[] args) {
 
+		long bubSortTime = 0;
+		long mergeSortTime = 0;
+		long myTimSortTime = 0;
+		long builtInSortTime = 0;
+
 		// fill with random Integer objects
 		long seed = java.lang.System.currentTimeMillis();
 		Random random = new Random();
 		random.setSeed(seed);
 
-		for (int f = 1; f <= 10; f += 1) {
+		for (int f = 0; f <= 100; f += 10) {
 			// generate list to test TimSort.sort
 			List<Integer> intList = new ArrayList<>();
-			
-			int count = random.nextInt(10);
-			System.out.println("count: " + count);
-			
-			// 1639000166406l - 80k
-			// 1639000271058l - 70k
-			
-			// generate an array between 1000-1500 long, filled with ints from 0-1000
-			for (int i = 0; i < random.nextInt(550) + 10000 * (count + 1); i++)
+
+			for (int i = 0; i < 25000 + random.nextInt(20); i++)
 				intList.add(random.nextInt(1000));
 
 			// old bubble sort
 			List<Integer> bubbleList = new ArrayList<>(intList);
 			long bubSortStart = System.currentTimeMillis();
-//			bubbleSort(bubbleList);
+			bubbleSort(bubbleList);
 			long bubSortEnd = System.currentTimeMillis();
+
+			// standard merge sort
+			List<Integer> mergeList = new ArrayList<>(intList);
+			long mergeSortStart = System.currentTimeMillis();
+			mergeSort(mergeList);
+			long mergeSortEnd = System.currentTimeMillis();
 
 			// commence TimSort
 			List<Integer> timList = new ArrayList<>(intList);
@@ -94,13 +95,9 @@ public class TimSort {
 			Collections.sort(builtInList);
 			long collectionSortEnd = System.currentTimeMillis();
 
-			// check that my TimSort results are the same built-in sort results
-			Map<Integer, Integer> wrong = new LinkedHashMap<>();
-			
 			boolean error = false;
 			for (int j = 0; j < builtInList.size(); j++) {
 				if (builtInList.get(j).compareTo(result.get(j)) != 0) {
-					wrong.put(j, result.get(j));
 					System.out.print("Error at element: " + j);
 					System.out.println(", " + builtInList.get(j) + " != " + result.get(j));
 					error = true;
@@ -113,17 +110,73 @@ public class TimSort {
 			}
 
 			// print results
-			System.out.println("seed: " + seed);
-			System.out.println("builtInList.size(): " + builtInList.size());
-			System.out.println("result.size(): " + result.size());
-			System.out.println("wrong.size(): " + wrong.size() + "\n");
-			
 			System.out.println("Sort results from working on a list with " + intList.size() + " elements in it:");
 			System.out.println("Bubble Sort took " + (bubSortEnd - bubSortStart) + " ms to sort the array.");
+			System.out.println("Merge Sort took " + (mergeSortEnd - mergeSortStart) + " ms to sort the array.");
 			System.out.println("My TimSort took " + (timSortEnd - timSortStart) + " ms to sort the array.");
 			System.out.println("The built in TimSort took " + (collectionSortEnd - collectionSortStart) + " ms to sort the array");
+
+			bubSortTime += bubSortEnd - bubSortStart;
+			mergeSortTime += mergeSortEnd - mergeSortStart;
+			myTimSortTime += timSortEnd - timSortStart;
+			builtInSortTime += collectionSortEnd - collectionSortStart;
 		}
+
+		System.out.println("\nBubble Sort average over 11 runs = " + (bubSortTime / 11));
+		System.out.println("Merge Sort average over 11 runs = " + (mergeSortTime / 11));
+		System.out.println("My TimSort average over 11 runs = " + (myTimSortTime / 11));
+		System.out.println("Built in TimSort average over 11 runs = " + (builtInSortTime / 11));
+
+		// second round of tests
+		mergeSortTime = 0;
+		myTimSortTime = 0;
+		builtInSortTime = 0;
+
+		// generate a large list to test TimSort.sort
+		List<Integer> intList = new ArrayList<>(1000021);
+
+		for (int i = 0; i < 1000000 + random.nextInt(20); i++)
+			intList.add(random.nextInt(10000));
+
+		// standard merge sort
+		List<Integer> mergeList = new ArrayList<>(intList);
+		long mergeSortStart = System.currentTimeMillis();
+		mergeSort(mergeList);
+		long mergeSortEnd = System.currentTimeMillis();
+
+		// commence TimSort
+		List<Integer> timList = new ArrayList<>(intList);
+		long timSortStart = System.currentTimeMillis();
+		List<Integer> result = sort(timList);
+		long timSortEnd = System.currentTimeMillis();
+
+		// built in sort
+		List<Integer> builtInList = new ArrayList<>(intList);
+		long collectionSortStart = System.currentTimeMillis();
+		Collections.sort(builtInList);
+		long collectionSortEnd = System.currentTimeMillis();
+
+		// check that my TimSort results are the same built-in sort results
+		Map<Integer, Integer> wrong = new LinkedHashMap<>();
+
+		boolean error = false;
+		for (int j = 0; j < builtInList.size(); j++) {
+			if (builtInList.get(j).compareTo(result.get(j)) != 0) {
+				wrong.put(j, result.get(j));
+				System.out.print("Error at element: " + j);
+				System.out.println(", " + builtInList.get(j) + " != " + result.get(j));
+				error = true;
+			}
 		}
+		if (error) {
+			System.out.println("\nSomething went wrong...");
+		}
+
+		System.out.println("\nSort results from working on a list with " + intList.size() + " elements in it:");
+		System.out.println("Merge Sort took " + (mergeSortEnd - mergeSortStart) + " ms to sort the array.");
+		System.out.println("My TimSort took " + (timSortEnd - timSortStart) + " ms to sort the array.");
+		System.out.println("The built in TimSort took " + (collectionSortEnd - collectionSortStart) + " ms to sort the array");
+	}
 
 	public static <T extends Comparable<T>> List<T> sort(List<T> array) {
 
@@ -133,34 +186,29 @@ public class TimSort {
 		if (arraySize < 64) {
 			min_run_size = arraySize;
 		} else {
-//			if ((arraySize & (arraySize - 1)) == 0 && arraySize != 0) {
-//				// if array.size() is a power of 2
-//				min_run_size = 32;
-//			} else {
-				// calculate min_run_size
-				int rValue = 0;
-				while (arraySize >= 64) {
-					rValue |= arraySize & 1;
-					arraySize >>= 1;		// halve array size
-				}
-				// the goal is to get n / result as close to a power of 2
-					// i.e. with n = 100, min_run_size = 50
-				min_run_size = rValue + arraySize;
-//			}
+			// calculate min_run_size
+			int rValue = 0;
+			while (arraySize >= 64) {
+				rValue |= arraySize & 1;
+				arraySize >>= 1;		// halve array size
+			}
+			// the goal is to get n / result as close to a power of 2
+				// i.e. with n = 100, min_run_size = 50
+			min_run_size = rValue + arraySize;
 		}
 
 		Stack<List<T>> runStack = new Stack<>();
 
-		List<T> currentRun = new ArrayList<>();
-		currentRun.add(array.get(0));
-
+		// find natural runs
 		for(int currentIndex = 1; currentIndex < array.size(); currentIndex++) {
 			boolean ascending = true;
 
-			// see if this or previous element is smaller
-			int compareResult = array.get(currentIndex).compareTo(array.get(currentIndex - 1));
+			// start new run
+			List<T> currentRun = new ArrayList<>(min_run_size * 2);
+			currentRun.add(array.get(currentIndex - 1));
 
-			// find natural runs
+			// find out if we're in an ascending or descending run
+			int compareResult = array.get(currentIndex).compareTo(array.get(currentIndex - 1));
 			if (compareResult >= 0) {
 				ascending = true;
 				while (currentIndex < array.size() && array.get(currentIndex).compareTo(array.get(currentIndex - 1)) >= 0) {
@@ -184,7 +232,7 @@ public class TimSort {
 
 			// bring currentRun size up to min_run_size
 			if (currentRun.size() < min_run_size) {				
-				// if currentRun is smaller than min_run_size, calculate endIndex to fill run to min_run_size
+				// calculate endIndex needed to fill run to min_run_size
 				int endIndex = min_run_size - currentRun.size() + currentIndex;
 				while (currentIndex < array.size() && currentIndex < endIndex) {				
 					// insert more elements sorted into currentRun
@@ -194,17 +242,9 @@ public class TimSort {
 				}
 				// add currentRun to runStack
 				runStack.add(currentRun);
-				// reset currentRun to an empty list, ending currentRun
-				currentRun = new ArrayList<>();
-				// decrement currentIndex so outer for loop does not skip element during next iteration
-				currentIndex--;
 			} else {
 				// if currentRun.size() is larger than min_run_size, just add it to runStack
 				runStack.add(currentRun);
-				// reset currentRun to an empty list, ending currentRun 
-				currentRun = new ArrayList<>();
-				// decrement currentIndex so outer for loop does not skip element during next iteration
-				currentIndex--;
 			}
 
 			// after currentRun is added to runStack, check for merge conditions
@@ -232,9 +272,9 @@ public class TimSort {
 						// merge y with x
 						mergedList.addAll(merge(y, x));
 						// push z
-						runStack.push(z);
-						// push merged
-						runStack.push(mergedList);
+						runStack.push(mergedList);		// major logic error here before 1.0 version, I placing z on the stack
+						// push merged						// before mergedList, this way is much faster due
+						runStack.push(z);					// to keeping successive runs in order
 					}
 					// recalculate sizes of top 3 runs to see if they still meet merge criteria
 					if (runStack.size() >= 3) {
@@ -247,8 +287,8 @@ public class TimSort {
 				}
 			}
 		}
-		
-		// TODO i think i can make this neater too
+
+		// TODO make this neater
 		List<T> sortedResults = runStack.pop();
 
 		for (int i = runStack.size() - 1; i >= 0; i--) {
@@ -260,16 +300,13 @@ public class TimSort {
 		return sortedResults;
 	}
 
-	// TODO, sort in place, into firstArray/y
-			// check performance with count >= minGallop
 	private static <T extends Comparable<T>> List<T> merge(List<T> firstArray, List<T> secondArray) {
 		int minGallop = 7;
 
-		List<T> result = new ArrayList<>();
+		List<T> result = new ArrayList<>(firstArray.size() + secondArray.size() + 1);
 		int index1 = 0;
 		int index2 = 0;
 
-		// TODO change these to modifiedBinarySearch
 		int lowIndexForFirstElement = firstElementIndex(secondArray, firstArray.get(0));
 		int hiIndexForLastElement = lastElementIndex(firstArray, secondArray.get(secondArray.size()-1));
 
@@ -277,14 +314,14 @@ public class TimSort {
 		for (int i = 0; i < lowIndexForFirstElement; i++) {
 			result.add(secondArray.get(i));
 		}
-		
+
 		// set index1 so we skip presorted elements already added
 		if (lowIndexForFirstElement != -1) {
 			index2 = lowIndexForFirstElement;
 		}
 
-		int aCount = 0;
-		int bCount = 0;
+		int firstArrayWinCount = 0;
+		int secondArrayWinCount = 0;
 
 		// end loop at hiIndexForLastElement so we can add presorted tail of firstArray
 		while ((index1 < firstArray.size() && index1 < hiIndexForLastElement) || index2 < secondArray.size()) {
@@ -296,12 +333,12 @@ public class TimSort {
 				if (firstArray.get(index1).compareTo(secondArray.get(index2)) > 0) {
 					// secondArray element is smaller
 					result.add(secondArray.get(index2));
-					bCount++;
-					aCount = 0;
+					secondArrayWinCount++;
+					firstArrayWinCount = 0;
 					index2++;
 
 					// GALLOP
-					while (bCount > minGallop || aCount > minGallop) {
+					while (secondArrayWinCount >= minGallop || firstArrayWinCount >= minGallop) {
 						int indexToGallopTo = 0;
 						if (index1 < firstArray.size()) {
 							int index2start = index2;
@@ -312,9 +349,9 @@ public class TimSort {
 								index2++;
 							}
 							result.add(firstArray.get(index1++));
-							bCount = index2 - index2start;
+							secondArrayWinCount = index2 - index2start;
 						} else {
-							bCount = 0;
+							secondArrayWinCount = 0;
 						}
 
 						if (index2 < secondArray.size()) {
@@ -325,54 +362,55 @@ public class TimSort {
 								index1++;
 							}
 							result.add(secondArray.get(index2++));
-							aCount = index1 - index1start;
+							firstArrayWinCount = index1 - index1start;
 						} else {
-							aCount = 0;
+							firstArrayWinCount = 0;
 						}
 					}
 				} else {
 					// firstArray element is smaller
 					result.add(firstArray.get(index1));
-					aCount++;
-					bCount = 0;
+					firstArrayWinCount++;
+					secondArrayWinCount = 0;
 					index1++;
 
 					// GALLOP
-					while (aCount > minGallop || bCount > minGallop) {
-//					while (bCount > minGallop) {
-						int indexToGallopTo = 0;
-						if (index2 < secondArray.size()) {
-							int index1start = index1;
-							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
-							// add presorted elements of firstArray to results
-							while (index1 < indexToGallopTo) {
-								result.add(firstArray.get(index1));
-								index1++;
-							}
-							result.add(secondArray.get(index2++));
-							aCount = index1 - index1start;
-						} else {
-							aCount = 0;
-						}
+					// for some reason the sort is ~10% faster if we skip this gallop section
+//					while (firstArrayWinCount >= minGallop || secondArrayWinCount >= minGallop) {
+					while (secondArrayWinCount > minGallop) {
+//						int indexToGallopTo = 0;
+//						if (index2 < secondArray.size()) {
+//							int index1start = index1;
+//							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
+//							// add presorted elements of firstArray to results
+//							while (index1 < indexToGallopTo) {
+//								result.add(firstArray.get(index1));
+//								index1++;
+//							}
+//							result.add(secondArray.get(index2++));
+//							firstArrayWinCount = index1 - index1start;
+//						} else {
+//							firstArrayWinCount = 0;
+//						}
 
 						if (index1 < firstArray.size()) {
 							int index2start = index2;
-							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
+							int indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
 							while (index2 < indexToGallopTo) {
 								result.add(secondArray.get(index2));
 								index2++;
 							}
 							result.add(firstArray.get(index1++));
-							bCount = index2 - index2start;
+							secondArrayWinCount = index2 - index2start;
 						} else {
-							bCount = 0;
+							secondArrayWinCount = 0;
 						}
 					}
 				}
 			}
 		}
 
-		// add presorted tail of second array
+		// add presorted tail of first array
 		if (hiIndexForLastElement != -1 && hiIndexForLastElement != firstArray.size()) {
 			for (int i = hiIndexForLastElement > index1 ? hiIndexForLastElement : index1; i < firstArray.size(); i++) {
 				result.add(firstArray.get(i));
@@ -445,30 +483,21 @@ public class TimSort {
 	}
 
 	// binary insert based on binary search from ch14_1 project
-	private static <T extends Comparable<T>> List<T> binaryInsert(List<T> list, T data) {
-		// set index bounds of zero and last index in list
-		int L = 0;
-		int U = list.size();
-		// get index between upper and lower
-		int M = (L + U) / 2;
+	private static <T extends Comparable<T>> void binaryInsert(List<T> list, T data) {
+		int loIndex = 0;
+		int hiIndex = list.size();
+		int midIndex = (loIndex + hiIndex) / 2;
 
-		// loop while bounds are not equal
-		while(L < U){
-			// compare requested data to list[M]
-			int compareResult = list.get(M).compareTo(data);
-			// if the data we're looking for is "less than" list[M]
-			// bring upper limit down
-			if(compareResult > 0)
-				U = M;
-			// if the data we're looking for is "greater than" lsit[M]
-			// bring lower limit up
-			else
-				// do not set L to M, because we already checked M and know it is not what we're looking for
-				L = M + 1;
-			M = (L + U) / 2;
+		while(loIndex < hiIndex){
+			int compareResult = list.get(midIndex).compareTo(data);
+			if(compareResult > 0) {
+				hiIndex = midIndex;
+			} else {
+				loIndex = midIndex + 1;
+			}
+			midIndex = (loIndex + hiIndex) / 2;
 		}
-		list.add(M, data);
-		return list;
+		list.add(midIndex, data);
 	}
 
 	// BubbleSort from Chapter 16
@@ -492,5 +521,58 @@ public class TimSort {
 				break;			// everything is sorted, break the outer for loop
 		}
 		return iterationCount;
+	}
+
+	// mergeSort from Chapter 16
+	public static <T extends Comparable<T>> List<T> mergeSort(List<T> list) {
+
+		// base case
+		if (list.size() < 2)
+			return list;
+
+		// partition into two halves, and recurse
+
+		// copy first half of the input list into ‘half1', and sort ‘halfl'
+		List<T> half1 = new ArrayList<>();
+		for (int i = 0; i < list.size() / 2; i++) {
+			half1.add(list.get(i));
+		}
+		half1 = mergeSort(half1);
+
+		// copy first hhLf of the input list into ‘half1', and sort ‘half1'
+
+		List<T> half2 = new ArrayList<>();
+
+		for (int i = list.size() / 2; i < list.size(); i++) {
+			half2.add(list.get(i));
+		}
+		half2 = mergeSort(half2);
+
+		// merge
+		return mergeHalves(half1, half2);
+	}
+
+	public static <T extends Comparable<T>> List<T> mergeHalves(List<T> half1, List<T> half2) {
+
+		List<T> result = new ArrayList<>();
+		int index1 = 0, index2 = 0;
+
+		// loop until both halves are depleted
+		while (index1 < half1.size() || index2 < half2.size()) {
+
+			if (index1 == half1.size())
+				result.add(half2.get(index2++));
+
+			else if (index2 == half2.size())
+				result.add(half1.get(index1++));
+
+			else {
+				if (half1.get(index1).compareTo(half2.get(index2)) > 0)
+					result.add(half2.get(index2++));
+				else
+					result.add(half1.get(index1++));
+			}
+		}
+		return result;
 	}
 }
