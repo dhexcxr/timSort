@@ -191,25 +191,23 @@ public class TimSort {
 
 	public static <T extends Comparable<T>> List<T> sort(List<T> array) {
 
-		// generate min_run_size, based on original C implementation for Python
-		int min_run_size = 0;
-		int arraySize = array.size();
-		if (arraySize < 64) {
-			min_run_size = arraySize;
-		} else {
-			// calculate min_run_size
-			int rValue = 0;
-			while (arraySize >= 64) {
-				rValue |= arraySize & 1;
-				arraySize >>= 1;		// halve array size
-			}
-			// the goal is to get n / result as close to a power of 2
-				// i.e. with n = 100, min_run_size = 50
-			min_run_size = rValue + arraySize;
-		}
+		int minRunSize = getMinRunSize(array);
 
 		Stack<List<T>> runStack = new Stack<>();
 
+		findNaturalRun(array, minRunSize, runStack);
+
+		List<T> sortedResults = runStack.pop();
+		
+		while (!runStack.isEmpty()) {
+			sortedResults = timMerge(runStack.pop(), sortedResults);
+		}
+		
+		return sortedResults;
+	}
+
+	private static <T extends Comparable<T>> void findNaturalRun(List<T> array, int min_run_size,
+			Stack<List<T>> runStack) {
 		// find natural runs
 		for(int currentIndex = 1; currentIndex < array.size(); currentIndex++) {
 			boolean ascending = true;
@@ -233,91 +231,107 @@ public class TimSort {
 			}
 
 			// reverse run if that was a descending run
-			if (ascending == false && currentRun.size() > 1) {
-				for (int j = 0, k = currentRun.size() - 1; j <= k; j++, k-- ) {
-					T temp = currentRun.get(j);
-					currentRun.set(j, currentRun.get(k));
-					currentRun.set(k, temp);
-				}
+			if (!ascending && currentRun.size() > 1) {
+				reverseDecendingRun(currentRun);
 			}
 
 			// bring currentRun size up to min_run_size
 			if (currentRun.size() < min_run_size) {				
-				// calculate endIndex needed to fill run to min_run_size
-				int endIndex = min_run_size - currentRun.size() + currentIndex;
-				while (currentIndex < array.size() && currentIndex < endIndex) {				
-					// insert more elements sorted into currentRun
-						// until we've hit end of array or we reach min_run_size
-					binaryInsert(currentRun, array.get(currentIndex));
-					currentIndex++;
-				}
-				// add currentRun to runStack
-				runStack.add(currentRun);
-			} else {
-				// if currentRun.size() is larger than min_run_size, just add it to runStack
-				runStack.add(currentRun);
+				currentIndex = filloutRun(array, min_run_size, currentIndex, currentRun);
 			}
 
+			// add currentRun to runStack
+			runStack.add(currentRun);
+			
 			// after currentRun is added to runStack, check for merge conditions
 			if (runStack.size() >= 3) {
-				int zSize = 0;
-				int ySize = 0;
-				int xSize = 0;
+				checkForMergePossibilities(runStack);
+			}
+		}
+	}
+
+	private static <T extends Comparable<T>> void checkForMergePossibilities(Stack<List<T>> runStack) {
+		int zSize = 0;
+		int ySize = 0;
+		int xSize = 0;
+		xSize = runStack.get(runStack.size() - 1).size();
+		ySize = runStack.get(runStack.size() - 2).size();
+		zSize = runStack.get(runStack.size() - 3).size();
+
+		while (zSize < ySize + xSize || ySize < xSize) {
+			List<T> mergedList = new ArrayList<>();
+			List<T> x = runStack.pop();
+			List<T> y = runStack.pop();
+			List<T> z = runStack.pop();
+			if (zSize < xSize) {
+				// merge y with z
+				mergedList.addAll(timMerge(y, z));
+				// push x
+				runStack.push(x);
+				// push merged
+				runStack.push(mergedList);
+			} else {
+				// merge y with x
+				mergedList.addAll(timMerge(y, x));
+				// push z
+				runStack.push(mergedList);		// major logic error here before 1.0 version, I placing z on the stack
+				// push merged						// before mergedList, this way is much faster due
+				runStack.push(z);					// to keeping successive runs in order
+			}
+			// recalculate sizes of top 3 runs to see if they still meet merge criteria
+			if (runStack.size() >= 3) {
 				xSize = runStack.get(runStack.size() - 1).size();
 				ySize = runStack.get(runStack.size() - 2).size();
 				zSize = runStack.get(runStack.size() - 3).size();
-
-				while (zSize < ySize + xSize || ySize < xSize) {
-					List<T> mergedList = new ArrayList<>();
-					List<T> x = runStack.pop();
-					List<T> y = runStack.pop();
-					List<T> z = runStack.pop();
-					if (zSize < xSize) {
-						// merge y with z
-						mergedList.addAll(merge(y, z));
-						// push x
-						runStack.push(x);
-						// push merged
-						runStack.push(mergedList);
-					} else {
-						// merge y with x
-						mergedList.addAll(merge(y, x));
-						// push z
-						runStack.push(mergedList);		// major logic error here before 1.0 version, I placing z on the stack
-						// push merged						// before mergedList, this way is much faster due
-						runStack.push(z);					// to keeping successive runs in order
-					}
-					// recalculate sizes of top 3 runs to see if they still meet merge criteria
-					if (runStack.size() >= 3) {
-						xSize = runStack.get(runStack.size() - 1).size();
-						ySize = runStack.get(runStack.size() - 2).size();
-						zSize = runStack.get(runStack.size() - 3).size();
-					} else {
-						break;
-					}
-				}
+			} else {
+				break;
 			}
 		}
+	}
 
-		// TODO make this neater
-		List<T> sortedResults = runStack.pop();
-
-//		while (!runStack.isEmpty()) {
-//			runStack.add(merge(sortedResults, runStack.pop()));
-//			if (!runStack.isEmpty()) {
-//				sortedResults = runStack.pop();
-//			} 
-//		}
-		
-		while (!runStack.isEmpty()) {
-			sortedResults = merge(runStack.pop(), sortedResults);
+	private static <T extends Comparable<T>> int filloutRun(List<T> array, int min_run_size, int currentIndex,
+			List<T> currentRun) {
+		// calculate endIndex needed to fill run to min_run_size
+		int endIndex = min_run_size - currentRun.size() + currentIndex;
+		while (currentIndex < array.size() && currentIndex < endIndex) {				
+			// insert more elements sorted into currentRun
+				// until we've hit end of array or we reach min_run_size
+			binaryInsert(currentRun, array.get(currentIndex));
+			currentIndex++;
 		}
-		
-		return sortedResults;
+		return currentIndex;
+	}
+
+	private static <T extends Comparable<T>> void reverseDecendingRun(List<T> currentRun) {
+		for (int j = 0, k = currentRun.size() - 1; j <= k; j++, k-- ) {
+			T temp = currentRun.get(j);
+			currentRun.set(j, currentRun.get(k));
+			currentRun.set(k, temp);
+		}
+	}
+
+	private static <T extends Comparable<T>> int getMinRunSize(List<T> array) {
+		// generate min_run_size, based on original C implementation for Python
+		int min_run_size = 0;
+		int arraySize = array.size();
+		if (arraySize < 64) {
+			min_run_size = arraySize;
+		} else {
+			// calculate min_run_size
+			int rValue = 0;
+			while (arraySize >= 64) {
+				rValue |= arraySize & 1;
+				arraySize >>= 1;		// halve array size
+			}
+			// the goal is to get n / result as close to a power of 2
+				// i.e. with n = 100, min_run_size = 50
+			min_run_size = rValue + arraySize;
+		}
+		return min_run_size;
 	}
 
 	// TODO add correct minGallop scaling
-	private static <T extends Comparable<T>> List<T> merge(List<T> firstArray, List<T> secondArray) {
+	private static <T extends Comparable<T>> List<T> timMerge(List<T> firstArray, List<T> secondArray) {
 		
 //		int minGallop = 7;
 
@@ -341,8 +355,25 @@ public class TimSort {
 		int firstArrayWinCount = 0;
 		int secondArrayWinCount = 0;
 
+		// TODO rename this method
+		index1 = compareArrays(firstArray, secondArray, result, index1, index2, hiIndexForLastElement,
+				firstArrayWinCount, secondArrayWinCount);
+
+		// add presorted tail of first array
+		if (hiIndexForLastElement != -1 && hiIndexForLastElement != firstArray.size()) {
+			for (int i = hiIndexForLastElement > index1 ? hiIndexForLastElement : index1; i < firstArray.size(); i++) {
+				result.add(firstArray.get(i));
+			}
+		}
+		return result;
+	}
+
+	private static <T extends Comparable<T>> int compareArrays(List<T> firstArray, List<T> secondArray, List<T> result,
+			int index1, int index2, int hiIndexForLastElement, int firstArrayWinCount, int secondArrayWinCount) {
 		// end loop at hiIndexForLastElement so we can add presorted tail of firstArray
 		while ((index1 < firstArray.size() && index1 < hiIndexForLastElement) || index2 < secondArray.size()) {
+
+			// if we've reached the end of either array or we've gone through all of firstArray
 			if (index1 == firstArray.size() || index1 == hiIndexForLastElement) {
 				result.add(secondArray.get(index2++));
 			} else if (index2 == secondArray.size()) {
@@ -358,40 +389,40 @@ public class TimSort {
 					// GALLOP
 					if (secondArrayWinCount >= minGallop) {
 						minGallop++;
-					while (secondArrayWinCount >= minGallop || firstArrayWinCount >= minGallop) {
-						minGallop -= minGallop > 1 ? 1 : 0;
-						int indexToGallopTo = 0;
-						if (index1 < firstArray.size() && secondArrayWinCount > 1) {
-							int index2start = index2;
-							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
-							// add presorted elements of secondArray to results
-							while (index2 < indexToGallopTo) {
-								result.add(secondArray.get(index2));
-								index2++;
+						while (secondArrayWinCount >= minGallop || firstArrayWinCount >= minGallop) {
+							minGallop -= minGallop > 1 ? 1 : 0;
+							int indexToGallopTo = 0;
+							if (index1 < firstArray.size() && secondArrayWinCount > 1) {
+								int index2start = index2;
+								indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
+								// add presorted elements of secondArray to results
+								while (index2 < indexToGallopTo) {		// TODO if we change this to a for loop we might be able to extract a method
+									result.add(secondArray.get(index2));
+									index2++;
+								}
+								result.add(firstArray.get(index1++));
+								secondArrayWinCount = index2 - index2start;
+							} else {
+								secondArrayWinCount = 0;
 							}
-							result.add(firstArray.get(index1++));
-							secondArrayWinCount = index2 - index2start;
-						} else {
-							secondArrayWinCount = 0;
-						}
 
-						if (index2 < secondArray.size() && firstArrayWinCount > 1) {
-							int index1start = index1;
-							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
-							while (index1 < indexToGallopTo) {
-								result.add(firstArray.get(index1));
-								index1++;
+							if (index2 < secondArray.size() && firstArrayWinCount > 1) {
+								int index1start = index1;
+								indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
+								while (index1 < indexToGallopTo) {
+									result.add(firstArray.get(index1));
+									index1++;
+								}
+								result.add(secondArray.get(index2++));
+								firstArrayWinCount = index1 - index1start;
+							} else {
+								firstArrayWinCount = 0;
 							}
-							result.add(secondArray.get(index2++));
-							firstArrayWinCount = index1 - index1start;
-						} else {
-							firstArrayWinCount = 0;
-						}
-						if (secondArrayWinCount < minGallop && firstArrayWinCount < minGallop) {
-							minGallop++;
+							if (secondArrayWinCount < minGallop && firstArrayWinCount < minGallop) {
+								minGallop++;
+							}
 						}
 					}
-				}
 				} else {
 					// firstArray element is smaller
 					result.add(firstArray.get(index1));
@@ -402,51 +433,44 @@ public class TimSort {
 					// GALLOP
 					if (firstArrayWinCount >= minGallop) {
 						minGallop++;
-					while (firstArrayWinCount >= minGallop) {
-						minGallop -= minGallop > 1 ? 1 : 0;
-						int indexToGallopTo = 0;
-						if (index2 < secondArray.size() && firstArrayWinCount > 1) {
-							int index1start = index1;
-							indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
-							// add presorted elements of firstArray to results
-							while (index1 < indexToGallopTo) {
-								result.add(firstArray.get(index1));
-								index1++;
+						while (firstArrayWinCount >= minGallop) {
+							minGallop -= minGallop > 1 ? 1 : 0;
+							int indexToGallopTo = 0;
+							if (index2 < secondArray.size() && firstArrayWinCount > 1) {
+								int index1start = index1;
+								indexToGallopTo = modifiedBinarySearch(firstArray, secondArray.get(index2));
+								// add presorted elements of firstArray to results
+								while (index1 < indexToGallopTo) {
+									result.add(firstArray.get(index1));
+									index1++;
+								}
+								result.add(secondArray.get(index2++));
+								firstArrayWinCount = index1 - index1start;
+							} else {
+								firstArrayWinCount = 0;
 							}
-							result.add(secondArray.get(index2++));
-							firstArrayWinCount = index1 - index1start;
-						} else {
-							firstArrayWinCount = 0;
-						}
 
-						if (index1 < firstArray.size() && secondArrayWinCount > 1) {
-							int index2start = index2;
-							indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
-							while (index2 < indexToGallopTo) {
-								result.add(secondArray.get(index2));
-								index2++;
+							if (index1 < firstArray.size() && secondArrayWinCount > 1) {
+								int index2start = index2;
+								indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
+								while (index2 < indexToGallopTo) {
+									result.add(secondArray.get(index2));
+									index2++;
+								}
+								result.add(firstArray.get(index1++));
+								secondArrayWinCount = index2 - index2start;
+							} else {
+								secondArrayWinCount = 0;
 							}
-							result.add(firstArray.get(index1++));
-							secondArrayWinCount = index2 - index2start;
-						} else {
-							secondArrayWinCount = 0;
-						}
-						if (firstArrayWinCount < minGallop && secondArrayWinCount < minGallop) {
-							minGallop++;
+							if (firstArrayWinCount < minGallop && secondArrayWinCount < minGallop) {
+								minGallop++;
+							}
 						}
 					}
 				}
-				}
 			}
 		}
-
-		// add presorted tail of first array
-		if (hiIndexForLastElement != -1 && hiIndexForLastElement != firstArray.size()) {
-			for (int i = hiIndexForLastElement > index1 ? hiIndexForLastElement : index1; i < firstArray.size(); i++) {
-				result.add(firstArray.get(i));
-			}
-		}
-		return result;
+		return index1;
 	}
 
 
@@ -562,14 +586,14 @@ public class TimSort {
 
 		// partition into two halves, and recurse
 
-		// copy first half of the input list into ‘half1', and sort ‘halfl'
+		// copy first half of the input list into ï¿½half1', and sort ï¿½halfl'
 		List<T> half1 = new ArrayList<>();
 		for (int i = 0; i < list.size() / 2; i++) {
 			half1.add(list.get(i));
 		}
 		half1 = mergeSort(half1);
 
-		// copy first hhLf of the input list into ‘half1', and sort ‘half1'
+		// copy first hhLf of the input list into ï¿½half1', and sort ï¿½half1'
 
 		List<T> half2 = new ArrayList<>();
 
