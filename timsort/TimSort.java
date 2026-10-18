@@ -1,49 +1,3 @@
-/***************************************
-
-M. Corey Glass
-12.03.21
-COP2805 70079, Fall2021
-Professor Ronald Villmow
-Project Name: cop2805wk15
-File Name: TimSort.java
-Class: TimSort
-
-implement an algorithm, I chose TimSort
-
-Implementation based on the following:
-Design Doc by Tim Peters -
-https://github.com/python/cpython/blob/main/Objects/listsort.txt
-
-Additional interpretation and insight from Wikipedia -
-https://en.wikipedia.org/wiki/Timsort
-
-And analysis from Skerritt.blogg -
-https://skerritt.blog/timsort/
-
- ***************************************/
-
-// ver 1.0.2debug
-// added stuff to detect and reverse descending runs
-// have correct binary insertion working
-// probably other stuff
-// most bugs fixed (famous last words)
-// and GALLOP MODE
-
-// this is no longer true, major logic error in pushing merged runs back onto stack made sort 5-10x slower
-		// this is slower than a standard merge sort, I think because my merge does not merge in place
-		// adding that (doing less memory copying) should speed this up
-
-
-// the only major feature I don't have is adjusting minGallop to make galloping easier or harder
-// depending on previous gallop performance
-		// this is where all the performance gains lie, changeing minGallop to 99 lets My TimSort beat merge sort
-		// with 1,000,000 elements and it's only 1.5 times slower than the built in TimSort
-
-// runs faster if firstArray section of second gallop is commented out ???
-
-// we might be able to do all in place work done with .subArray method
-
-
 package timsort;
 
 import java.util.ArrayList;
@@ -54,8 +8,26 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
 
+
+ /**
+ * Clean-room Java implementation of the TimSort hybrid sorting algorithm.
+ *
+ * Combines natural run identification, in-place descending run reversal,
+ * binary insertion sort padding, stack-based merge invariants, and an
+ * adaptive galloping heuristic.
+ *
+ * @see <a href="https://github.com/python/cpython/blob/main/Objects/listsort.txt">
+ *      Tim Peters' Original CPython listsort.txt Specification</a>
+ * @see <a href="https://skerritt.blog/timsort/">
+ *      Autumn Skerritt: TimSort Algorithmic Breakdown</a>
+ * @see <a href="https://en.wikipedia.org/wiki/Timsort">
+ *      Wikipedia: TimSort</a>
+ *
+ * @author Matthew Corey Glass
+ */
+
 public class TimSort {
-	
+
 	private static int minGallop = 7;
 
 	public static void main(String[] args) {
@@ -78,7 +50,7 @@ public class TimSort {
 				Integer element = random.nextInt(10000);
 				intList.add(element);
 			}
-				
+
 
 			// old bubble sort
 			List<Integer> bubbleList = new ArrayList<>(intList);
@@ -198,11 +170,11 @@ public class TimSort {
 		findNaturalRun(array, minRunSize, runStack);
 
 		List<T> sortedResults = runStack.pop();
-		
+
 		while (!runStack.isEmpty()) {
 			sortedResults = timMerge(runStack.pop(), sortedResults);
 		}
-		
+
 		return sortedResults;
 	}
 
@@ -236,13 +208,13 @@ public class TimSort {
 			}
 
 			// bring currentRun size up to min_run_size
-			if (currentRun.size() < min_run_size) {				
+			if (currentRun.size() < min_run_size) {
 				currentIndex = filloutRun(array, min_run_size, currentIndex, currentRun);
 			}
 
 			// add currentRun to runStack
 			runStack.add(currentRun);
-			
+
 			// after currentRun is added to runStack, check for merge conditions
 			if (runStack.size() >= 3) {
 				checkForMergePossibilities(runStack);
@@ -264,19 +236,13 @@ public class TimSort {
 			List<T> y = runStack.pop();
 			List<T> z = runStack.pop();
 			if (zSize < xSize) {
-				// merge y with z
-				mergedList.addAll(timMerge(y, z));
-				// push x
+				mergedList = timMerge(y, z);
 				runStack.push(x);
-				// push merged
 				runStack.push(mergedList);
 			} else {
-				// merge y with x
-				mergedList.addAll(timMerge(y, x));
-				// push z
-				runStack.push(mergedList);		// major logic error here before 1.0 version, I placing z on the stack
-				// push merged						// before mergedList, this way is much faster due
-				runStack.push(z);					// to keeping successive runs in order
+				mergedList = timMerge(y, x);
+				runStack.push(mergedList);
+				runStack.push(z);
 			}
 			// recalculate sizes of top 3 runs to see if they still meet merge criteria
 			if (runStack.size() >= 3) {
@@ -293,7 +259,7 @@ public class TimSort {
 			List<T> currentRun) {
 		// calculate endIndex needed to fill run to min_run_size
 		int endIndex = min_run_size - currentRun.size() + currentIndex;
-		while (currentIndex < array.size() && currentIndex < endIndex) {				
+		while (currentIndex < array.size() && currentIndex < endIndex) {
 			// insert more elements sorted into currentRun
 				// until we've hit end of array or we reach min_run_size
 			binaryInsert(currentRun, array.get(currentIndex));
@@ -330,10 +296,7 @@ public class TimSort {
 		return min_run_size;
 	}
 
-	// TODO add correct minGallop scaling
 	private static <T extends Comparable<T>> List<T> timMerge(List<T> firstArray, List<T> secondArray) {
-		
-//		int minGallop = 7;
 
 		List<T> result = new ArrayList<>(firstArray.size() + secondArray.size() + 1);
 		int index1 = 0;
@@ -355,7 +318,6 @@ public class TimSort {
 		int firstArrayWinCount = 0;
 		int secondArrayWinCount = 0;
 
-		// TODO rename this method
 		index1 = compareArrays(firstArray, secondArray, result, index1, index2, hiIndexForLastElement,
 				firstArrayWinCount, secondArrayWinCount);
 
@@ -383,7 +345,7 @@ public class TimSort {
 					// secondArray element is smaller
 					result.add(secondArray.get(index2));
 					secondArrayWinCount++;
-					firstArrayWinCount = 2;		// give firstArray at lease one chance to find a run
+					firstArrayWinCount = 2;		// give firstArray at least one chance to find a run
 					index2++;
 
 					// GALLOP
@@ -396,7 +358,7 @@ public class TimSort {
 								int index2start = index2;
 								indexToGallopTo = modifiedBinarySearch(secondArray, firstArray.get(index1));
 								// add presorted elements of secondArray to results
-								while (index2 < indexToGallopTo) {		// TODO if we change this to a for loop we might be able to extract a method
+								while (index2 < indexToGallopTo) {
 									result.add(secondArray.get(index2));
 									index2++;
 								}
@@ -536,7 +498,6 @@ public class TimSort {
 		return result;
 	}
 
-	// binary insert based on binary search from ch14_1 project
 	private static <T extends Comparable<T>> void binaryInsert(List<T> list, T data) {
 		int loIndex = 0;
 		int hiIndex = list.size();
@@ -554,10 +515,7 @@ public class TimSort {
 		list.add(midIndex, data);
 	}
 
-	// BubbleSort from Chapter 16
 	public static <E extends Comparable<E>> int bubbleSort(List<E> list) {
-		// generic bubble sort for objects implementing the Comparable interface
-
 		int iterationCount = 0;
 		for (int counter1 = 0; counter1 < list.size(); counter1++) {
 			boolean isSorted = true;
@@ -577,7 +535,6 @@ public class TimSort {
 		return iterationCount;
 	}
 
-	// mergeSort from Chapter 16
 	public static <T extends Comparable<T>> List<T> mergeSort(List<T> list) {
 
 		// base case
@@ -586,23 +543,18 @@ public class TimSort {
 
 		// partition into two halves, and recurse
 
-		// copy first half of the input list into �half1', and sort �halfl'
 		List<T> half1 = new ArrayList<>();
 		for (int i = 0; i < list.size() / 2; i++) {
 			half1.add(list.get(i));
 		}
 		half1 = mergeSort(half1);
 
-		// copy first hhLf of the input list into �half1', and sort �half1'
-
 		List<T> half2 = new ArrayList<>();
-
 		for (int i = list.size() / 2; i < list.size(); i++) {
 			half2.add(list.get(i));
 		}
 		half2 = mergeSort(half2);
 
-		// merge
 		return mergeHalves(half1, half2);
 	}
 
